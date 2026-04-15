@@ -49,14 +49,70 @@ export class Renderer {
       const result = await page.evaluate(() => {
         const lib = (window as unknown as { htmlToFigmaLib: { htmlToFigma: (n: Element) => unknown } }).htmlToFigmaLib
         const tree = lib.htmlToFigma(document.body)
+
         const fonts = new Map<string, Set<number>>()
+        const textRegistry: Array<{ x: number; y: number; w: number; h: number; weight: number; family: string }> = []
         document.querySelectorAll('*').forEach((el) => {
           const cs = getComputedStyle(el)
-          const family = cs.fontFamily.split(',')[0].trim().replace(/["']/g, '')
+          const rawFamily = cs.fontFamily || ''
+          const family = rawFamily.split(',')[0].trim().replace(/["']/g, '')
           const weight = parseInt(cs.fontWeight, 10) || 400
-          if (!fonts.has(family)) fonts.set(family, new Set())
-          fonts.get(family)!.add(weight)
+          if (family) {
+            if (!fonts.has(family)) fonts.set(family, new Set())
+            fonts.get(family)!.add(weight)
+          }
+          const text = (el.textContent || '').trim()
+          if (text.length > 0) {
+            const rect = el.getBoundingClientRect()
+            if (rect.width >= 1 && rect.height >= 1) {
+              textRegistry.push({
+                x: Math.round(rect.left),
+                y: Math.round(rect.top),
+                w: Math.round(rect.width),
+                h: Math.round(rect.height),
+                weight,
+                family,
+              })
+            }
+          }
         })
+
+        const findMatch = (n: { x?: number; y?: number; width?: number; height?: number }) => {
+          let best: { weight: number; family: string } | null = null
+          let bestScore = Infinity
+          for (const t of textRegistry) {
+            const dx = Math.abs((n.x ?? 0) - t.x)
+            const dy = Math.abs((n.y ?? 0) - t.y)
+            if (dx > 20 || dy > 20) continue
+            const score = dx + dy
+            if (score < bestScore) {
+              bestScore = score
+              best = { weight: t.weight, family: t.family }
+            }
+          }
+          return best
+        }
+
+        const enrich = (n: Record<string, unknown>) => {
+          if (n.type === 'TEXT') {
+            const match = findMatch(n as { x?: number; y?: number; width?: number; height?: number })
+            if (match) {
+              if (n.fontWeight === undefined) n.fontWeight = match.weight
+              if (typeof n.fontFamily !== 'string' || !n.fontFamily.trim()) {
+                n.fontFamily = match.family
+              } else {
+                n.fontFamily = (n.fontFamily as string).split(',')[0].trim().replace(/["']/g, '')
+              }
+            }
+          }
+          if (Array.isArray(n.children)) {
+            for (const c of n.children) enrich(c as Record<string, unknown>)
+          }
+          if (n.before) enrich(n.before as Record<string, unknown>)
+          if (n.after) enrich(n.after as Record<string, unknown>)
+        }
+        enrich(tree as Record<string, unknown>)
+
         return {
           tree,
           fonts: Array.from(fonts.entries()).map(([family, weights]) => ({
