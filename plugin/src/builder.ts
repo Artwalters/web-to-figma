@@ -1,11 +1,45 @@
 import { weightToStyle } from './fonts'
 import type { FigmaNodeJson, RenderAsset } from './types'
 
-const decodeBase64 = (str: string): Uint8Array => {
-  const bin = atob(str)
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+const B64_TABLE: Record<string, number> = {}
+for (let i = 0; i < B64_ALPHABET.length; i++) B64_TABLE[B64_ALPHABET.charAt(i)] = i
+
+const decodeBase64Manual = (str: string): Uint8Array => {
+  const clean = str.replace(/[^A-Za-z0-9+/]/g, '')
+  const len = clean.length
+  const padLen = (str.match(/=+$/) || [''])[0].length
+  const outLen = Math.floor(len * 3 / 4) - padLen
+  const bytes = new Uint8Array(Math.max(outLen, 0))
+  let outIdx = 0
+  for (let i = 0; i < len; i += 4) {
+    const b1 = B64_TABLE[clean.charAt(i)] || 0
+    const b2 = B64_TABLE[clean.charAt(i + 1)] || 0
+    const b3 = B64_TABLE[clean.charAt(i + 2)] || 0
+    const b4 = B64_TABLE[clean.charAt(i + 3)] || 0
+    if (outIdx < outLen) bytes[outIdx++] = (b1 << 2) | (b2 >> 4)
+    if (outIdx < outLen) bytes[outIdx++] = ((b2 & 15) << 4) | (b3 >> 2)
+    if (outIdx < outLen) bytes[outIdx++] = ((b3 & 3) << 6) | b4
+  }
   return bytes
+}
+
+const decodeBase64 = (str: string): Uint8Array => {
+  const f = figma as unknown as { base64Decode?: (s: string) => Uint8Array }
+  if (typeof f.base64Decode === 'function') {
+    try {
+      return f.base64Decode(str)
+    } catch {
+      // fall through to manual
+    }
+  }
+  if (typeof atob === 'function') {
+    const bin = atob(str)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    return bytes
+  }
+  return decodeBase64Manual(str)
 }
 
 const imgStats = { attempted: 0, svgSkipped: 0, created: 0, failed: 0, missingAsset: 0 }
