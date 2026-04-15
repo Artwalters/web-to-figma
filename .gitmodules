@@ -1,0 +1,3 @@
+[submodule "engine/html-to-figma"]
+	path = engine/html-to-figma
+	url = https://github.com/Artwalters/html-to-figma.git
