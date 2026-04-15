@@ -150,7 +150,12 @@ export class Renderer {
         const enrich = (n: Record<string, unknown>, absX: number, absY: number) => {
           const nx = (typeof n.x === 'number' ? n.x : 0) + absX
           const ny = (typeof n.y === 'number' ? n.y : 0) + absY
-          const forMatch = { x: nx, y: ny, width: n.width, height: n.height }
+          const forMatch = {
+            x: nx,
+            y: ny,
+            width: typeof n.width === 'number' ? n.width : undefined,
+            height: typeof n.height === 'number' ? n.height : undefined,
+          }
 
           if (n.type === 'TEXT') {
             const match = findTextMatch(forMatch)
