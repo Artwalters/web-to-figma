@@ -1,6 +1,7 @@
 import { chromium, Browser, BrowserContext } from 'playwright'
 import type { RenderRequest, RenderResponse, FigmaNodeJson } from './types'
 import { getEngineSource } from './engine'
+import { extractImageUrls, fetchAndEncode, rewriteFillsToHash } from './assets'
 
 export class Renderer {
   private browser?: Browser
@@ -66,11 +67,15 @@ export class Renderer {
         }
       })
 
+      const urls = extractImageUrls(result.tree as FigmaNodeJson)
+      const { assets, urlToHash } = await fetchAndEncode(ctx, urls)
+      rewriteFillsToHash(result.tree as FigmaNodeJson, urlToHash)
+
       this.requestCount++
 
       return {
         tree: result.tree as FigmaNodeJson,
-        assets: {},
+        assets,
         fonts: result.fonts,
         meta: {
           url: result.title || req.url,
