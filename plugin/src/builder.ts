@@ -122,7 +122,31 @@ const buildFrame = async (
     }
   }
   await appendPseudos(f, n, assets)
+  applyAutoLayout(f, n)
   return f
+}
+
+const applyAutoLayout = (f: FrameNode, n: FigmaNodeJson) => {
+  const mode = n.layoutMode
+  if (mode !== 'HORIZONTAL' && mode !== 'VERTICAL') return
+  try {
+    f.layoutMode = mode
+    if (typeof n.itemSpacing === 'number') f.itemSpacing = n.itemSpacing
+    if (typeof n.paddingTop === 'number') f.paddingTop = n.paddingTop
+    if (typeof n.paddingRight === 'number') f.paddingRight = n.paddingRight
+    if (typeof n.paddingBottom === 'number') f.paddingBottom = n.paddingBottom
+    if (typeof n.paddingLeft === 'number') f.paddingLeft = n.paddingLeft
+    const prim = n.primaryAxisAlignItems
+    const sec = n.counterAxisAlignItems
+    if (prim === 'MIN' || prim === 'CENTER' || prim === 'MAX' || prim === 'SPACE_BETWEEN') {
+      f.primaryAxisAlignItems = prim
+    }
+    if (sec === 'MIN' || sec === 'CENTER' || sec === 'MAX' || sec === 'BASELINE') {
+      f.counterAxisAlignItems = sec
+    }
+  } catch (e) {
+    console.warn('[web-to-figma] auto-layout apply failed', (e as Error).message)
+  }
 }
 
 const buildSvgNode = (n: FigmaNodeJson): SceneNode | null => {

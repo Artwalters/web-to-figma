@@ -40,6 +40,8 @@ export type FigmaNodeJson = {
   paddingRight?: number
   paddingBottom?: number
   paddingLeft?: number
+  primaryAxisAlignItems?: string
+  counterAxisAlignItems?: string
   [key: string]: unknown
 }
 
