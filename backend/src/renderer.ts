@@ -52,12 +52,77 @@ export class Renderer {
 
         const fonts = new Map<string, Set<number>>()
         type TextEntry = { x: number; y: number; w: number; h: number; weight: number; family: string }
+        type LayoutInfo = {
+          mode: 'HORIZONTAL' | 'VERTICAL' | 'NONE'
+          itemSpacing: number
+          paddingT: number
+          paddingR: number
+          paddingB: number
+          paddingL: number
+          primaryAxis: string
+          counterAxis: string
+        }
         type DomEntry = {
           x: number; y: number; w: number; h: number
           tag: string; id: string; classes: string[]
+          layout: LayoutInfo
+          isSection: boolean
         }
         const textRegistry: TextEntry[] = []
         const domRegistry: DomEntry[] = []
+
+        const SECTION_TAGS = new Set(['section', 'header', 'nav', 'main', 'article', 'aside', 'footer'])
+
+        const parsePx = (s: string): number => {
+          const n = parseFloat(s)
+          return Number.isFinite(n) ? Math.round(n) : 0
+        }
+
+        const cssAlignToFigma = (v: string): string => {
+          switch (v) {
+            case 'flex-start':
+            case 'start':
+            case 'normal':
+              return 'MIN'
+            case 'center':
+              return 'CENTER'
+            case 'flex-end':
+            case 'end':
+              return 'MAX'
+            case 'space-between':
+              return 'SPACE_BETWEEN'
+            case 'baseline':
+              return 'MIN'
+            case 'stretch':
+              return 'MIN'
+            default:
+              return 'MIN'
+          }
+        }
+
+        const getLayout = (cs: CSSStyleDeclaration): LayoutInfo => {
+          const isFlex = cs.display === 'flex' || cs.display === 'inline-flex'
+          if (!isFlex) {
+            return {
+              mode: 'NONE', itemSpacing: 0,
+              paddingT: 0, paddingR: 0, paddingB: 0, paddingL: 0,
+              primaryAxis: 'MIN', counterAxis: 'MIN',
+            }
+          }
+          const dir = cs.flexDirection || 'row'
+          const mode: LayoutInfo['mode'] = dir.startsWith('column') ? 'VERTICAL' : 'HORIZONTAL'
+          const gap = parsePx(cs.columnGap || cs.gap || '0')
+          return {
+            mode,
+            itemSpacing: gap,
+            paddingT: parsePx(cs.paddingTop),
+            paddingR: parsePx(cs.paddingRight),
+            paddingB: parsePx(cs.paddingBottom),
+            paddingL: parsePx(cs.paddingLeft),
+            primaryAxis: cssAlignToFigma(cs.justifyContent || 'flex-start'),
+            counterAxis: cssAlignToFigma(cs.alignItems || 'stretch'),
+          }
+        }
 
         document.querySelectorAll('*').forEach((el) => {
           const cs = getComputedStyle(el)
@@ -89,14 +154,17 @@ export class Renderer {
             const raw = el.className.trim()
             if (raw) classes.push(...raw.split(/\s+/).slice(0, 3))
           }
+          const tag = el.tagName.toLowerCase()
           domRegistry.push({
             x: Math.round(rect.left),
             y: Math.round(rect.top),
             w: Math.round(rect.width),
             h: Math.round(rect.height),
-            tag: el.tagName.toLowerCase(),
+            tag,
             id: el.id || '',
             classes,
+            layout: getLayout(cs),
+            isSection: SECTION_TAGS.has(tag),
           })
         })
 
@@ -174,6 +242,19 @@ export class Renderer {
             const dom = findDomMatch(forMatch)
             if (dom) {
               n.name = makeName(dom)
+              if (dom.isSection) {
+                n.name = '[SECTION] ' + n.name
+              }
+              if (dom.layout.mode !== 'NONE') {
+                n.layoutMode = dom.layout.mode
+                n.itemSpacing = dom.layout.itemSpacing
+                n.paddingTop = dom.layout.paddingT
+                n.paddingRight = dom.layout.paddingR
+                n.paddingBottom = dom.layout.paddingB
+                n.paddingLeft = dom.layout.paddingL
+                n.primaryAxisAlignItems = dom.layout.primaryAxis
+                n.counterAxisAlignItems = dom.layout.counterAxis
+              }
             }
           }
 
@@ -184,6 +265,48 @@ export class Renderer {
           if (n.after) enrich(n.after as Record<string, unknown>, nx, ny)
         }
         enrich(tree as Record<string, unknown>, 0, 0)
+
+        const hasVisual = (n: Record<string, unknown>): boolean => {
+          const fills = Array.isArray(n.fills) ? n.fills : []
+          if (fills.length > 0) return true
+          const strokes = Array.isArray(n.strokes) ? n.strokes : []
+          if (strokes.length > 0) return true
+          const effects = Array.isArray(n.effects) ? n.effects : []
+          if (effects.length > 0) return true
+          if (typeof n.svg === 'string' && n.svg.length > 0) return true
+          if (n.type === 'TEXT') return true
+          return false
+        }
+
+        const collapseWrappers = (n: Record<string, unknown>): void => {
+          if (!Array.isArray(n.children)) return
+          for (const c of n.children) collapseWrappers(c as Record<string, unknown>)
+
+          const newChildren: unknown[] = []
+          for (const c of n.children) {
+            const child = c as Record<string, unknown>
+            if (
+              child.type === 'FRAME' &&
+              !hasVisual(child) &&
+              !child.layoutMode &&
+              Array.isArray(child.children) &&
+              child.children.length > 0
+            ) {
+              const cx = typeof child.x === 'number' ? child.x : 0
+              const cy = typeof child.y === 'number' ? child.y : 0
+              for (const gc of child.children) {
+                const gchild = gc as Record<string, unknown>
+                if (typeof gchild.x === 'number') gchild.x = gchild.x + cx
+                if (typeof gchild.y === 'number') gchild.y = gchild.y + cy
+                newChildren.push(gchild)
+              }
+            } else {
+              newChildren.push(child)
+            }
+          }
+          n.children = newChildren
+        }
+        collapseWrappers(tree as Record<string, unknown>)
 
         return {
           tree,
