@@ -6,10 +6,11 @@ These rules OVERRIDE the global `~/.claude/CLAUDE.md` for this project. All othe
 
 **Auto-commit is ALLOWED for this project.** The main agent and subagents may `git commit` without asking, following the commit steps in the implementation plan.
 
+**Auto-push is ALSO allowed** for this project. The user has explicitly approved push operations.
+
 **Still required:**
 - Commit messages in English
 - Conventional commits style (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`)
-- `git push` to remote requires explicit user approval
 - Any destructive git action (force-push, reset --hard, branch delete) requires explicit user approval
 
 ## Code style (reminder — already in global)
