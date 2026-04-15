@@ -202,13 +202,17 @@ const applyFills = (
         opacity: alpha,
       })
     } else if (f.type === 'IMAGE' && typeof f.assetHash === 'string' && assets[f.assetHash]) {
+      const asset = assets[f.assetHash]
+      if (asset.mime === 'image/svg+xml') {
+        continue
+      }
       try {
-        const bytes = decodeBase64(assets[f.assetHash].data)
+        const bytes = decodeBase64(asset.data)
         const image = figma.createImage(bytes)
         const scaleMode = f.scaleMode === 'FIT' ? 'FIT' : 'FILL'
         out.push({ type: 'IMAGE', scaleMode, imageHash: image.hash })
       } catch (e) {
-        console.warn('Failed to embed image', e)
+        console.warn('Failed to embed image', (e as Error).message)
       }
     }
   }
