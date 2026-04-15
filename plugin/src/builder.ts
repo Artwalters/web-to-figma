@@ -8,6 +8,9 @@ const decodeBase64 = (str: string): Uint8Array => {
   return bytes
 }
 
+const imgStats = { attempted: 0, svgSkipped: 0, created: 0, failed: 0, missingAsset: 0 }
+export const getImgStats = () => imgStats
+
 const cleanFontFamily = (raw: string): string => {
   const first = raw.split(',')[0].trim().replace(/['"]/g, '')
   return first || 'Inter'
@@ -201,9 +204,16 @@ const applyFills = (
         color: { r: f.color.r, g: f.color.g, b: f.color.b },
         opacity: alpha,
       })
-    } else if (f.type === 'IMAGE' && typeof f.assetHash === 'string' && assets[f.assetHash]) {
+    } else if (f.type === 'IMAGE') {
+      imgStats.attempted++
+      if (typeof f.assetHash !== 'string') continue
       const asset = assets[f.assetHash]
+      if (!asset) {
+        imgStats.missingAsset++
+        continue
+      }
       if (asset.mime === 'image/svg+xml') {
+        imgStats.svgSkipped++
         continue
       }
       try {
@@ -211,8 +221,10 @@ const applyFills = (
         const image = figma.createImage(bytes)
         const scaleMode = f.scaleMode === 'FIT' ? 'FIT' : 'FILL'
         out.push({ type: 'IMAGE', scaleMode, imageHash: image.hash })
+        imgStats.created++
       } catch (e) {
-        console.warn('Failed to embed image', (e as Error).message)
+        imgStats.failed++
+        console.warn('[web-to-figma] createImage failed for', asset.mime, (e as Error).message)
       }
     }
   }

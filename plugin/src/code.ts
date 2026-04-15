@@ -1,4 +1,4 @@
-import { buildTree } from './builder'
+import { buildTree, getImgStats } from './builder'
 import { loadFonts } from './fonts'
 import type { RenderResponse } from './types'
 
@@ -45,10 +45,16 @@ figma.ui.onmessage = async (msg) => {
 
     const frameCount = countFrames(root)
     const imageCount = Object.keys(data.assets).length
+    const stats = getImgStats()
+    console.log('[web-to-figma] image stats:', stats)
+    console.log('[web-to-figma] assets received:', imageCount, 'frames built:', frameCount)
     figma.ui.postMessage({
       type: 'success',
       frames: frameCount,
-      images: imageCount,
+      images: stats.created,
+      imagesTotal: imageCount,
+      imagesFailed: stats.failed,
+      imagesSvgSkipped: stats.svgSkipped,
       missingFonts,
     })
   } catch (err) {

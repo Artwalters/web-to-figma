@@ -78,9 +78,12 @@ window.onmessage = (e) => {
   if (msg.type === 'progress') setStatus('info', msg.text)
   if (msg.type === 'success') {
     const fontsNote = msg.missingFonts.length > 0
-      ? `. Missing fonts: ${msg.missingFonts.join(', ')}`
+      ? ` | Missing fonts: ${msg.missingFonts.join(', ')}`
       : ''
-    setStatus('success', `Imported - ${msg.frames} frames, ${msg.images} images${fontsNote}.`)
+    const imgNote = typeof msg.imagesTotal === 'number'
+      ? ` (${msg.images}/${msg.imagesTotal} embedded, ${msg.imagesSvgSkipped ?? 0} svg skipped, ${msg.imagesFailed ?? 0} failed)`
+      : ''
+    setStatus('success', `Imported ${msg.frames} frames. Images${imgNote}${fontsNote}`)
     resetBtn()
   }
   if (msg.type === 'error') {
