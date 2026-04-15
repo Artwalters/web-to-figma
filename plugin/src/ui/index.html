@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <main class="app">
+    <header class="hdr">
+      <div class="hdr-title">Web → Figma</div>
+      <div class="hdr-sub">Import any site as auto-layout</div>
+    </header>
+
+    <section class="field">
+      <label for="url">URL</label>
+      <div class="input-wrap">
+        <input id="url" type="text" placeholder="https://example.com" autocomplete="off" spellcheck="false" />
+        <span class="validity" data-state="idle"></span>
+      </div>
+    </section>
+
+    <section class="field">
+      <label>Viewport</label>
+      <div class="segmented" role="tablist">
+        <button class="seg active" data-viewport="1440">Desktop</button>
+        <button class="seg" data-viewport="834">Tablet</button>
+        <button class="seg" data-viewport="390">Mobile</button>
+      </div>
+    </section>
+
+    <button id="import" class="btn-primary" disabled>
+      <span class="btn-label">Import</span>
+      <span class="btn-spinner" hidden></span>
+    </button>
+
+    <section id="status" class="status" hidden></section>
+  </main>
+</body>
+</html>
