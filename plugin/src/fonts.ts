@@ -12,6 +12,27 @@ export const weightToStyle = (w: number): string => {
   return 'Black'
 }
 
+const GENERIC_MAP: Record<string, string> = {
+  'sans-serif': 'Inter',
+  'sans': 'Inter',
+  'system-ui': 'Inter',
+  'system': 'Inter',
+  '-apple-system': 'Inter',
+  'ui-sans-serif': 'Inter',
+  'serif': 'Noto Serif',
+  'ui-serif': 'Noto Serif',
+  'monospace': 'Roboto Mono',
+  'mono': 'Roboto Mono',
+  'ui-monospace': 'Roboto Mono',
+  'cursive': 'Inter',
+  'fantasy': 'Inter',
+}
+
+export const resolveFamily = (raw: string): string => {
+  const lower = raw.toLowerCase().trim()
+  return GENERIC_MAP[lower] ?? raw
+}
+
 export const loadFonts = async (fonts: FontRef[]): Promise<string[]> => {
   const available = await figma.listAvailableFontsAsync()
   const availableByFamily = new Map<string, Set<string>>()
@@ -24,21 +45,27 @@ export const loadFonts = async (fonts: FontRef[]): Promise<string[]> => {
 
   const missing = new Set<string>()
   for (const font of fonts) {
-    const styles = availableByFamily.get(font.family)
+    const resolved = resolveFamily(font.family)
+    const styles = availableByFamily.get(resolved)
     if (!styles) {
-      missing.add(font.family)
+      if (resolved === font.family) missing.add(font.family)
       continue
     }
     for (const w of font.weights) {
       const style = weightToStyle(w)
       if (styles.has(style)) {
         try {
-          await figma.loadFontAsync({ family: font.family, style })
+          await figma.loadFontAsync({ family: resolved, style })
         } catch {
           missing.add(font.family)
         }
       } else {
-        missing.add(font.family)
+        const fallbackStyle = styles.has('Regular') ? 'Regular' : Array.from(styles)[0]
+        try {
+          await figma.loadFontAsync({ family: resolved, style: fallbackStyle })
+        } catch {
+          missing.add(font.family)
+        }
       }
     }
   }

@@ -1,4 +1,4 @@
-import { weightToStyle } from './fonts'
+import { weightToStyle, resolveFamily } from './fonts'
 import type { FigmaNodeJson, RenderAsset } from './types'
 
 const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -155,7 +155,8 @@ const buildSvgNode = (n: FigmaNodeJson): SceneNode | null => {
 
 const buildTextNode = async (n: FigmaNodeJson): Promise<TextNode> => {
   const rawFamily = typeof n.fontFamily === 'string' ? n.fontFamily : 'Inter'
-  const family = cleanFontFamily(rawFamily)
+  const cleaned = cleanFontFamily(rawFamily)
+  const family = resolveFamily(cleaned)
   const weight = typeof n.fontWeight === 'number' ? n.fontWeight : 400
   const style = weightToStyle(weight)
   const fontName = { family, style }
@@ -172,7 +173,6 @@ const buildTextNode = async (n: FigmaNodeJson): Promise<TextNode> => {
     } catch {
       await figma.loadFontAsync({ family: 'Inter', style: 'Regular' })
       t.fontName = { family: 'Inter', style: 'Regular' }
-      t.name = `[font: ${family} ${weight}] ` + t.name
     }
   }
 
